@@ -1,25 +1,13 @@
-# ---- Build stage: compiles your app and makes the fat JAR
-FROM eclipse-temurin:17-jdk AS build
+FROM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline
+COPY src ./src
+RUN mvn -q -DskipTests package
 
-# Copy Maven wrapper + pom first (caches dependencies)
-COPY mvnw mvnw.cmd pom.xml ./
-COPY .mvn .mvn
-RUN ./mvnw -q -DskipTests dependency:go-offline
-
-# Copy source and build
-COPY src src
-RUN ./mvnw -q -DskipTests package
-
-# ---- Run stage: runs only the JRE + your jar
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-
-# Copy the built jar from the build stage
 COPY --from=build /app/target/*.jar app.jar
-
-# Respect Render's PORT if provided, else 8080
 ENV PORT=8080
 EXPOSE 8080
-
 ENTRYPOINT ["java","-jar","/app/app.jar"]
